@@ -1,0 +1,48 @@
+import requests
+import time
+import json
+
+# 微信公众号的 appid 和 secret
+APPID = 'your_appid'
+SECRET = 'your_secret'
+
+# 钱包地址
+ADDRESS = 'your_wallet_address'
+
+# 微信用户的 openid
+OPENID = 'your_openid'
+
+# 发送消息的 URL
+SEND_URL = f'https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token='
+
+# 获取 access_token 的 URL
+TOKEN_URL = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APPID}&secret={SECRET}'
+
+# 上一次查询到的最新交易的 hash
+last_hash = ''
+
+# 循环查询钱包地址的交易记录
+while True:
+    # 查询最新的交易记录
+    resp = requests.get(f'https://api.etherscan.io/api?module=account&action=txlist&address={ADDRESS}&sort=desc&apikey=YourApiKeyToken')
+    data = json.loads(resp.text)
+
+    # 如果有新的交易
+    if data['result'][0]['hash'] != last_hash:
+        # 发送通知消息给指定的微信用户
+        access_token = requests.get(TOKEN_URL).json()['access_token']
+        send_data = {
+            'touser': OPENID,
+            'msgtype': 'text',
+            'text': {
+                'content': f'您的钱包地址 {ADDRESS} 有新的交易：{data["result"][0]["hash"]}'
+            }
+        }
+        send_resp = requests.post(SEND_URL + access_token, json=send_data)
+        print(send_resp.text)
+
+        # 更新最新交易的 hash
+        last_hash = data['result'][0]['hash']
+
+    # 暂停 10 秒后继续查询
+    time.sleep(10)
